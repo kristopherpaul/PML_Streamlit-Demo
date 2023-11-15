@@ -41,8 +41,6 @@ def conjugate_prior_info(prior, likelihood):
         return "No transformation needed", "Beta (Conjugate)"
     elif prior == "Gamma" and likelihood == "Poisson":
         return "No transformation needed", "Gamma (Conjugate)"
-    elif prior == "Gamma" and likelihood == "Normal":
-        return "No transformations needed", "Gamma (Conjugate)"
     elif prior == "Normal" and likelihood == "Normal":
         return "No transformation needed", "Normal (Conjugate)"
     else:
@@ -87,8 +85,6 @@ def plot_prior_posterior(prior, likelihood, prior_params, likelihood_params, num
         posterior_dist = beta.pdf(data, prior_params[0] + (likelihood_dist==1).sum(), prior_params[1] + (likelihood_dist==0).sum())
     elif prior == "Gamma" and likelihood == "Poisson":
         posterior_dist = gamma.pdf(data, prior_params[0] + (likelihood_dist==1).sum(), scale=1/(prior_params[1]+num_likelihood_samples))
-    elif prior == "Gamma" and likelihood == "Normal":
-        posterior_dist = gamma.pdf(data, prior_params[0] + num_likelihood_samples/2, scale=prior_params[1]+0.5*np.sum((num_likelihood_samples-np.mean(likelihood_dist))**2))
     elif prior == "Normal" and likelihood == "Normal":
         posterior_mean = (prior_params[0]/prior_params[1]**2 + likelihood_params[0]/likelihood_params[1]**2) / (1/prior_params[1]**2 + 1/likelihood_params[1]**2)
         posterior_std_dev = np.sqrt(1/(1/prior_params[1]**2 + 1/likelihood_params[1]**2))
