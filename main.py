@@ -66,16 +66,6 @@ def conjugate_prior_info(prior, likelihood):
         return "Logistic", "Unknown (Non-Conjugate)"
     elif prior == "Exponential" and likelihood == "Normal":
         return "Log", "Unknown (Non-Conjugate)"
-    """
-    if prior == "Normal" and likelihood == "Bernoulli":
-        return "Apply Sigmoid function to the parameter", "Unknown (Non-Conjugate)"
-    elif prior == "Uniform" and likelihood == "Poisson":
-        return "No transformation needed", "Unknown (Non-Conjugate)"
-    elif prior == "Exponential" and likelihood == "Normal":
-        return "No transformation needed", "Unknown (Non-Conjugate)"
-    else:
-        return "Unknown", "Unknown (Non-Conjugate)"
-    """
 
 def sigmoid(x):
     return (np.e**x)/(1+np.e**x)
@@ -95,10 +85,8 @@ def plot_prior_posterior(prior, likelihood, prior_params, likelihood_params):
     if prior == "Beta":
         prior_dist = Beta(torch.tensor([prior_params[0]]), torch.tensor([prior_params[1]]))
         param_space = sigmoid(param_space)
-        #p_values = torch.linspace(0.001, 0.999, 10000)
         prior_values = prior_dist.log_prob(torch.from_numpy(param_space)).exp()
         prior_values = prior_values.numpy()
-        #prior_dist = beta.pdf(pdf_space, prior_params[0], prior_params[1])
     elif prior == "Gamma":
         prior_dist = Gamma(torch.tensor([prior_params[0]]), torch.tensor([prior_params[1]]))
         param_space = exp(param_space)
@@ -174,13 +162,6 @@ def plot_prior_posterior(prior, likelihood, prior_params, likelihood_params):
     # Plotting
     fig, ax = plt.subplots()
     
-    #ax[0].plot(p_values.numpy(), prior_values.numpy(), label='Prior')
-    #ax[0].set_title('Prior Distribution')
-    #ax[1].plot(p_values.numpy(), normalised_likelihood_values, label='Likelihood')
-    #ax[1].set_title('Likelihood Distribution')
-    #ax[2].plot(p_values.numpy(), posterior_values.numpy(), label='Posterior')
-    #ax[2].set_title('Posterior Distribution')
-    
     ax.plot(param_space, prior_values / np.max(prior_values) * np.max(normalised_likelihood_values) / 2, label='Prior')
     ax.plot(param_space, normalised_likelihood_values, label='Likelihood')
     ax.plot(param_space, posterior_values, label='Posterior', linestyle='-.', color='black')
@@ -188,14 +169,9 @@ def plot_prior_posterior(prior, likelihood, prior_params, likelihood_params):
     ax.set_ylabel('Probability Density')
     ax.legend()
 
-#    for a in ax:
-        #a.legend()
-#        a.grid(True)
-
     st.pyplot(fig)
 
 def main():
-    #st.title("Conjugate and Non-Conjugate Priors Information with Visualizations")
     col1, col2 = st.columns([1,2],gap="large")
     
     with col1:
@@ -209,23 +185,16 @@ def main():
         likelihood = st.selectbox("Select Likelihood Distribution", ["Bernoulli", "Normal"])#, "Poisson"])
         likelihood_params = get_likelihood_params(likelihood)
     
-    # Display information based on choices
-    #if prior in ["Beta", "Gamma", "Normal"] and likelihood in ["Bernoulli", "Poisson", "Normal"]:
-    #    bijector, posterior_type = conjugate_prior_info(prior, likelihood)
-    #else:
     bijector, posterior_type = conjugate_prior_info(prior, likelihood)
 
     with col2:
         st.header("Posterior Distribution")
-        # Display results
-        #st.subheader("Results:")
+        
         coll1, coll2 = st.columns([2,1])
         with coll2:
             st.write(f"Bijector (Parameter Transform): {bijector}")
             st.write(f"Posterior Distribution Type: {posterior_type}")
 
-        # Visualizations
-        #st.subheader("Visualizations:")
         with coll1:
             plot_prior_posterior(prior, likelihood, prior_params, likelihood_params)
         
