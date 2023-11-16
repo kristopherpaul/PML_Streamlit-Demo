@@ -121,7 +121,7 @@ def plot_prior_posterior(prior, likelihood, prior_params, likelihood_params):
         posterior_dist = gamma.pdf(data, prior_params[0] + (likelihood_dist==1).sum(), scale=1/(prior_params[1]+num_likelihood_samples))
     elif prior == "Normal" and likelihood == "Normal":
         posterior_unnormalized = prior_values * likelihood_values
-        posterior_values = posterior_unnormalized / np.sum(posterior_unnormalized) / (mu_values[1] - mu_values[0])
+        posterior_values = posterior_unnormalized / np.sum(posterior_unnormalized) / (p_values[1] - p_values[0])
         max_post = max(posterior_values)
 
         normalised_likelihood_values = []
