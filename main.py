@@ -2,7 +2,7 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import beta, gamma, norm, uniform, expon, poisson, bernoulli
-from torch.distributions import Beta
+from torch.distributions import Beta, Gamma
 import torch
 import math
 
@@ -79,10 +79,13 @@ def plot_prior_posterior(prior, likelihood, prior_params, likelihood_params):
         prior_values = prior_values.numpy()
         #prior_dist = beta.pdf(pdf_space, prior_params[0], prior_params[1])
     elif prior == "Gamma":
-        prior_dist = gamma.pdf(pdf_space, prior_params[0], scale=prior_params[1])
+        prior_dist = Gamma(torch.tensor([prior_params[0]]), torch.tensor([prior_params[1]]))
+        p_values = torch.linspace(0, 10, 10000)
+        prior_values = prior_dist.log_prob(p_values).exp()
+        prior_values = prior_values.numpy()
     elif prior == "Normal":
-        mu_values = np.linspace(-5, 5, 10000)
-        prior_values = norm.pdf(mu_values, loc=prior_params[0], scale=prior_params[1])
+        p_values = np.linspace(-5, 5, 10000)
+        prior_values = norm.pdf(p_values, loc=prior_params[0], scale=prior_params[1])
     elif prior == "Uniform":
         prior_dist = uniform.pdf(pdf_space)
     elif prior == "Exponential":
@@ -97,9 +100,10 @@ def plot_prior_posterior(prior, likelihood, prior_params, likelihood_params):
         likelihood_values = [(p ** n1) * ((1-p)**n0) for p in p_values]
         max_likelihood = max(likelihood_values)
     elif likelihood == "Poisson":
-        likelihood_dist = poisson.pmf(pdf_space, likelihood_params[0])
+        likelihood_values = poisson.pmf(p_values, likelihood_params[0])
+        max_likelihood = max(likelihood_values)
     elif likelihood == "Normal":
-        likelihood_values = norm.pdf(likelihood_params[0], loc=mu_values, scale=likelihood_params[1])
+        likelihood_values = norm.pdf(likelihood_params[0], loc=p_values, scale=likelihood_params[1])
         max_likelihood = max(likelihood_values)
 
     # Update prior based on observed data (posterior distribution)
@@ -123,10 +127,16 @@ def plot_prior_posterior(prior, likelihood, prior_params, likelihood_params):
         normalised_likelihood_values = []
         for i in likelihood_values:
             normalised_likelihood_values.append(i / max_likelihood * max_post)
-        param_values = mu_values
+        param_values = p_values
     else:
-        # Non-conjugate case - posterior not analytically tractable
-        posterior_dist = np.ones_like(data)  # Placeholder for non-conjugate case
+        posterior_unnormalized = prior_values * likelihood_values
+        posterior_values = posterior_unnormalized / np.sum(posterior_unnormalized) / (p_values[1] - p_values[0])
+        max_post = max(posterior_values)
+
+        normalised_likelihood_values = []
+        for i in likelihood_values:
+            normalised_likelihood_values.append(i / max_likelihood * max_post)
+        param_values = p_values
 
     # Plotting
     fig, ax = plt.subplots()
@@ -193,7 +203,6 @@ def main():
         #    st.latex(r'\textbf{Prior}\text{: Normal}(\mu_0,\sigma_0^2) \equiv \text{Normal}('+rf'{prior_params[0]}'+r','+rf'{prior_params[1]}^2'+r')')
         #    st.latex(r'\textbf{Likelihood}\text{: Normal}(\mu,\sigma^2) \equiv \text{Normal}('+rf'{likelihood_params[0]}'+r','+rf'{likelihood_params[1]}^2'+r')')
         #    st.latex(r"\textbf{Posterior}\text{: Normal}(\mu',\sigma'^2) \equiv \text{Normal}\left(\frac{1}{\frac{1}{\sigma_0^2}+\frac{n}{\sigma^2}}\right)")
-        
             
 if __name__ == "__main__":
     main()
