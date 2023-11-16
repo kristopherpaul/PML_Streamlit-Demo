@@ -181,7 +181,7 @@ def plot_prior_posterior(prior, likelihood, prior_params, likelihood_params):
     #ax[2].plot(p_values.numpy(), posterior_values.numpy(), label='Posterior')
     #ax[2].set_title('Posterior Distribution')
     
-    ax.plot(param_space, prior_values / max(prior_values) * max(normalised_likelihood_values) / 2, label='Prior')
+    ax.plot(param_space, prior_values / np.max(prior_values) * np.max(normalised_likelihood_values) / 2, label='Prior')
     ax.plot(param_space, normalised_likelihood_values, label='Likelihood')
     ax.plot(param_space, posterior_values, label='Posterior', linestyle='-.', color='black')
     ax.set_xlabel('Parameter')
