@@ -151,6 +151,8 @@ def plot_prior_posterior(prior, likelihood, prior_params, likelihood_params):
     ax.plot(param_values, prior_values, label='Prior')
     ax.plot(param_values, normalised_likelihood_values, label='Likelihood')
     ax.plot(param_values, posterior_values, label='Posterior', linestyle='-.', color='black')
+    ax.set_xlabel('Parameter')
+    ax.set_ylabel('Probability Density')
     ax.legend()
 
 #    for a in ax:
