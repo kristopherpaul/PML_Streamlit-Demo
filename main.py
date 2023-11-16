@@ -52,14 +52,21 @@ def get_likelihood_params(likelihood):
 def conjugate_prior_info(prior, likelihood):
     if prior == "Beta" and likelihood == "Bernoulli":
         return "No transformation needed", "Beta (Conjugate)"
-    elif prior == "Gamma" and likelihood == "Poisson":
-        return "No transformation needed", "Gamma (Conjugate)"
     elif prior == "Normal" and likelihood == "Normal":
         return "No transformation needed", "Normal (Conjugate)"
-    else:
-        return "Unknown", "Unknown (Non-Conjugate)"
-
-def non_conjugate_prior_info(prior, likelihood):
+    elif prior == "Beta" and likelihood == "Normal":
+        return "Logit", "Unknown (Non-Conjugate)"
+    elif prior == "Gamma" and likelihood == "Bernoulli":
+        return "Logistic", "Unknown (Non-Conjugate)"
+    elif prior == "Gamma" and likelihood == "Normal":
+        return "Log", "Unknown (Non-Conjugate)"
+    elif prior == "Normal" and likelihood == "Bernoulli":
+        return "Sigmoid", "Unknown (Non-Conjugate)"
+    elif prior == "Exponential" and likelihood == "Bernoulli":
+        return "Logistic", "Unknown (Non-Conjugate)"
+    elif prior == "Exponential" and likelihood == "Normal":
+        return "Log", "Unknown (Non-Conjugate)"
+    """
     if prior == "Normal" and likelihood == "Bernoulli":
         return "Apply Sigmoid function to the parameter", "Unknown (Non-Conjugate)"
     elif prior == "Uniform" and likelihood == "Poisson":
@@ -68,28 +75,42 @@ def non_conjugate_prior_info(prior, likelihood):
         return "No transformation needed", "Unknown (Non-Conjugate)"
     else:
         return "Unknown", "Unknown (Non-Conjugate)"
+    """
+
+def sigmoid(x):
+    return (np.e**x)/(1+np.e**x)
+
+def exp(x):
+    return np.e**x
+
+def logistic(x):
+    return 1/(1+np.e**(-x))
+
+def logit(x):
+    return np.log(x/(1-x))
 
 def plot_prior_posterior(prior, likelihood, prior_params, likelihood_params):
-    pdf_space = np.linspace(-5,5,1000)
+    param_space = np.linspace(-5,5,1000)
     
     if prior == "Beta":
         prior_dist = Beta(torch.tensor([prior_params[0]]), torch.tensor([prior_params[1]]))
-        p_values = torch.linspace(0.001, 0.999, 10000)
-        prior_values = prior_dist.log_prob(p_values).exp()
+        param_space = sigmoid(param_space)
+        #p_values = torch.linspace(0.001, 0.999, 10000)
+        prior_values = prior_dist.log_prob(torch.from_numpy(param_space)).exp()
         prior_values = prior_values.numpy()
         #prior_dist = beta.pdf(pdf_space, prior_params[0], prior_params[1])
     elif prior == "Gamma":
         prior_dist = Gamma(torch.tensor([prior_params[0]]), torch.tensor([prior_params[1]]))
-        p_values = torch.linspace(0, 10, 10000)
-        prior_values = prior_dist.log_prob(p_values).exp()
+        param_space = exp(param_space)
+        prior_values = prior_dist.log_prob(torch.from_numpy(param_space)).exp()
         prior_values = prior_values.numpy()
     elif prior == "Normal":
-        p_values = np.linspace(-5, 5, 10000)
-        prior_values = norm.pdf(p_values, loc=prior_params[0], scale=prior_params[1])
+        prior_values = norm.pdf(param_space, loc=prior_params[0], scale=prior_params[1])
     elif prior == "Uniform":
-        prior_dist = uniform.pdf(pdf_space)
+        prior_dist = uniform.pdf(param_space)
     elif prior == "Exponential":
-        prior_dist = expon.pdf(pdf_space, scale=prior_params[0])
+        param_space = exp(param_space)
+        prior_values = expon.pdf(param_space, scale=prior_params[0])
 
     if likelihood == "Bernoulli":
         n1 = int(likelihood_params[0]*100)
@@ -97,46 +118,58 @@ def plot_prior_posterior(prior, likelihood, prior_params, likelihood_params):
         gc = math.gcd(n0,n1)
         n1 /= gc
         n0 /= gc
-        likelihood_values = [(p ** n1) * ((1-p)**n0) for p in p_values]
+        if prior in ["Gamma","Exponential"]:
+            param_space = logistic(param_space)
+        elif prior == "Normal":
+            param_space = sigmoid(param_space)
+        likelihood_values = [(p ** n1) * ((1-p)**n0) for p in param_space]
         max_likelihood = max(likelihood_values)
     elif likelihood == "Poisson":
-        likelihood_values = poisson.pmf(p_values, likelihood_params[0])
+        if prior in ["Gamma","Exponential"]:
+            param_space = np.floor(param_space)
+        elif prior == "Normal":
+            param_space = np.floor(param_space)+min(np.floor(param_space))
+        elif prior == "Beta":
+            param_space = np.floor(5*param_space)
+        likelihood_values = poisson.pmf(param_space, likelihood_params[0])
         max_likelihood = max(likelihood_values)
     elif likelihood == "Normal":
-        likelihood_values = norm.pdf(likelihood_params[0], loc=p_values, scale=likelihood_params[1])
+        if prior in ["Gamma","Exponential"]:
+            param_space = np.log(param_space)
+        elif prior == "Beta":
+            param_space = logit(param_space)
+        likelihood_values = norm.pdf(likelihood_params[0], loc=param_space, scale=likelihood_params[1])
         max_likelihood = max(likelihood_values)
 
     # Update prior based on observed data (posterior distribution)
     if prior == "Beta" and likelihood == "Bernoulli":
         posterior_dist = Beta(torch.tensor([prior_params[0]+n1]), torch.tensor([prior_params[1]+n0]))
-        posterior_values = posterior_dist.log_prob(p_values).exp()
+        posterior_values = posterior_dist.log_prob(torch.from_numpy(param_space)).exp()
         max_post = max(posterior_values)
 
         normalised_likelihood_values = []
         for i in likelihood_values:
             normalised_likelihood_values.append(i / max_likelihood * max_post)
         posterior_values = posterior_values.numpy()
-        param_values = p_values.numpy()
     elif prior == "Gamma" and likelihood == "Poisson":
-        posterior_dist = gamma.pdf(data, prior_params[0] + (likelihood_dist==1).sum(), scale=1/(prior_params[1]+num_likelihood_samples))
+        pass
+        #posterior_dist = gamma.pdf(data, prior_params[0] + (likelihood_dist==1).sum(), scale=1/(prior_params[1]+num_likelihood_samples))
     elif prior == "Normal" and likelihood == "Normal":
         posterior_unnormalized = prior_values * likelihood_values
-        posterior_values = posterior_unnormalized / np.sum(posterior_unnormalized) / (p_values[1] - p_values[0])
+        posterior_values = posterior_unnormalized / np.sum(posterior_unnormalized) / (param_space[1] - param_space[0])
         max_post = max(posterior_values)
 
         normalised_likelihood_values = []
         for i in likelihood_values:
             normalised_likelihood_values.append(i / max_likelihood * max_post)
-        param_values = p_values
     else:
         posterior_unnormalized = prior_values * likelihood_values
-        posterior_values = posterior_unnormalized / np.sum(posterior_unnormalized) / (p_values[1] - p_values[0])
+        posterior_values = posterior_unnormalized / np.sum(posterior_unnormalized) / (param_space[1] - param_space[0])
         max_post = max(posterior_values)
 
         normalised_likelihood_values = []
         for i in likelihood_values:
             normalised_likelihood_values.append(i / max_likelihood * max_post)
-        param_values = p_values
 
     # Plotting
     fig, ax = plt.subplots()
@@ -148,9 +181,9 @@ def plot_prior_posterior(prior, likelihood, prior_params, likelihood_params):
     #ax[2].plot(p_values.numpy(), posterior_values.numpy(), label='Posterior')
     #ax[2].set_title('Posterior Distribution')
     
-    ax.plot(param_values, prior_values, label='Prior')
-    ax.plot(param_values, normalised_likelihood_values, label='Likelihood')
-    ax.plot(param_values, posterior_values, label='Posterior', linestyle='-.', color='black')
+    ax.plot(param_space, prior_values, label='Prior')
+    ax.plot(param_space, normalised_likelihood_values, label='Likelihood')
+    ax.plot(param_space, posterior_values, label='Posterior', linestyle='-.', color='black')
     ax.set_xlabel('Parameter')
     ax.set_ylabel('Probability Density')
     ax.legend()
@@ -173,14 +206,14 @@ def main():
         st.divider()
 
         st.header("Likelihood Distribution")
-        likelihood = st.selectbox("Select Likelihood Distribution", ["Bernoulli", "Normal", "Poisson"])
+        likelihood = st.selectbox("Select Likelihood Distribution", ["Bernoulli", "Normal"])#, "Poisson"])
         likelihood_params = get_likelihood_params(likelihood)
     
     # Display information based on choices
-    if prior in ["Beta", "Gamma", "Normal"] and likelihood in ["Bernoulli", "Poisson", "Normal"]:
-        bijector, posterior_type = conjugate_prior_info(prior, likelihood)
-    else:
-        bijector, posterior_type = non_conjugate_prior_info(prior, likelihood)
+    #if prior in ["Beta", "Gamma", "Normal"] and likelihood in ["Bernoulli", "Poisson", "Normal"]:
+    #    bijector, posterior_type = conjugate_prior_info(prior, likelihood)
+    #else:
+    bijector, posterior_type = conjugate_prior_info(prior, likelihood)
 
     with col2:
         st.header("Posterior Distribution")
